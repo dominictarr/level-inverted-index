@@ -1,0 +1,24 @@
+{
+  "name": "level-inverted-index",
+  "description": "",
+  "version": "0.0.0",
+  "homepage": "https://github.com/dominictarr/level-inverted-index",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dominictarr/level-inverted-index.git"
+  },
+  "dependencies": {
+    "level-map-merge": "~3.0.1",
+    "through": "~2.2.2"
+  },
+  "devDependencies": {
+    "level-sublevel": "~4.0.0",
+    "levelup": "~0.6.2",
+    "rimraf": "~2.1.4"
+  },
+  "scripts": {
+    "test": "set -e; for t in test/*.js; do node $t; done"
+  },
+  "author": "Dominic Tarr <dominic.tarr@gmail.com> (http://dominictarr.com)",
+  "license": "MIT"
+}
