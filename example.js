@@ -38,11 +38,11 @@ else if(opts.batch) {
 
 else if (opts.query) {
 
-  index.query(opts._, console.log)
+  index.query(opts._)
+    .on('data', console.log)
 
 }
 else {
   index.createQueryStream(opts._)
     .on('data', console.log)
-
 }

@@ -1,6 +1,15 @@
-var MapMerge = require('level-map-merge')
+var MapReduce = require('map-reduce')
 var through  = require('through')
 var from     = require('from')
+var join     = require('relational-join-stream')
+
+function toFunction (f) {
+  if('string' == typeof f)
+    return function (e) {
+      return e[f]
+    }
+  return f
+}
 
 module.exports = function (db, indexDb, map, stub) {
 
@@ -40,7 +49,21 @@ module.exports = function (db, indexDb, map, stub) {
     return insensitive ? w.toUpperCase() : w
   }
 
-  MapMerge(db, indexDb, function (key, val, emit) {
+  //I just realized that is is super dumb.
+  //instead of merging all the results for a thing
+  //into one object -- when it could just be a range
+  //... which would make it work MUCH BETTER for realtime.
+
+  //the dumb thing I was doing was reducing everything.
+  //this is fine without reduce -- will have to test it on a large dataset though.
+
+  //users are not gonna query many keys an once -- maybe two or three.
+  //highly common terms could be handled differently, instead of indexing them,
+  //just check the documents for them as they match other keys.
+  //then, when you generate the stubs -- that is also when you could rank for word order
+  //and the matching terms, etc.
+
+  MapReduce(db, indexDb, function (key, val, emit) {
 
     function split (ary, rank) {
       if(!ary) return
@@ -55,7 +78,7 @@ module.exports = function (db, indexDb, map, stub) {
           if('number' === typeof ary[w] && !isNaN(ary[w])) {
             var o = {}
             o[key] = ary[w]
-            emit(toCase(w), o)
+            emit([toCase(w), ary[w]].join('!'), key)
           }
         }
       }
@@ -64,89 +87,57 @@ module.exports = function (db, indexDb, map, stub) {
         ary.forEach(function (w) {
           var o = {}
           o[key] = rank || 1
-          emit(toCase(w), o)
+          emit([toCase(w), rank || 1].join('!'), key)
         })
       }
     }
     map(key, val, split)
-  },
-  function (M, m, key) {
-
-    for(var k in m) {
-      if(!M[k]) M[k] = m[k]
-      else      M[k] += m[k]
-    }
-
-    indexDb.emit('merge', k, M)
-
-    return M
   })
 
-  indexDb.query = function (query, cb) {
-
-    var acc = null, n = 0
-    //if(!Array.isArray(query)
-    /*var query = process.argv.slice(2)*/
-
-    query.filter(function (e) {
-      return !!e
-    }).map(function (e) {
-        return e.toUpperCase()
-    }).forEach(function (e) {
-      n ++
-
-      var k = e
-
-      var group = {}
-      //if the search term ends in ~
-      //turn that into a range query - so you can search
-      //for any word that starts with TERM~
-      indexDb.createReadStream({
-        start: k.replace(/~$/, ''), end: k
-      })
-      .pipe(through(function (data) {
-        var key = data.key.replace(/^.*~/, '')
-        group = or(group, JSON.parse(data.value), key.toLowerCase())
-      }, function () {
-        if(!acc) acc = group
-        else acc = and(acc, group)
-        if(--n) return
-        cb(null, acc)
-      }))
-    })
-
-    function or (acc, item, e) {
-      for(var k in item) {
-        if(acc[k]) acc[k].push([e, item[k]])
-        else       acc[k] = [[e, item[k]]]
+  indexDb.query = function (query) {
+    console.log(query)
+    return join(query.map(function (k) {
+      //create streams for each query
+      k = k.toUpperCase()
+      var range = /~$/.test(k)
+        ? {start: '2!'+k.replace(/~$/, ''), end: '2!'+k}
+        : {start: '2!'+k+'!', end: '2!'+k+'!~'}
+      return indexDb.createReadStream(range)
+    }), 'value',
+    function (data) {
+      //map to {word: rank}
+      var a = data.key.split('!')
+      var key = a[1].toLowerCase()
+      var rank = Number(a[2])
+      var o = {}
+      o[key] = rank
+      return o
+    }, 
+    function (e, k) {
+      //merge ranks together
+      return {
+        key: k,
+        value: e.reduce(function (acc, item) {
+          for (var k in item)
+            acc[k] = (acc[k] || 0) + Number(item[k])
+          return acc
+        }, {})
       }
-      return acc
-    }
-
-    function and (acc, item) {
-      var r = {}
-      for(var k in acc)
-        if(item[k]) r[k] = acc[k].concat(item[k])
-      return r
-    }
+    })
   }
-  indexDb.createQueryStream = function (query) {
-    var docs
-    var rs = from(function (i, next) {
-      var self = this
-      if(i >= docs.length) return this.emit('end')
-      db.get(docs[i], function (err, value) {
-        if(value) self.emit('data', stub(value, query))
-        next()
-      })
-    })
-    rs.pause()
-    indexDb.query(query, function (err, data) {
-      docs = Object.keys(data)
-      rs.resume()
-    })
 
-    return rs
+  indexDb.createQueryStream = function (query) {
+    return indexDb.query(query)
+      .pipe(through(function (data) {
+        var self = this
+        db.get(data.key, function (err, value) {
+          if(!value) return
+          var ret = stub(value, query, data.value)
+          if(ret)
+            self.queue(ret)
+        })
+      }))
+
   }
 
   return indexDb
