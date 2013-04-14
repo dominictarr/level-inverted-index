@@ -45,6 +45,11 @@ module.exports = function (db, indexDb, map, stub) {
   if('string' === typeof indexDb)
     indexDb = db.sublevel(indexDb)
 
+  var methods = indexDb.methods = indexDb.methods || {}
+
+  methods.query = {type: 'async'}
+  methods.createQueryStream = {type: 'readable'}
+
   function toCase(w) {
     return insensitive ? w.toUpperCase() : w
   }
