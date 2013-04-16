@@ -18,7 +18,7 @@ module.exports = function (db, indexDb, map, stub) {
 
   var methods = indexDb.methods = indexDb.methods || {}
 
-  methods.query = {type: 'async'}
+  methods.query = {type: 'readable'}
   methods.createQueryStream = {type: 'readable'}
 
   map = map || function (key, value, emit) {
@@ -131,15 +131,24 @@ module.exports = function (db, indexDb, map, stub) {
   }
 
   indexDb.createQueryStream = function (query) {
+    var n = 0, ended = false
     return indexDb.query(query)
       .pipe(through(function (data) {
+        n ++
         var self = this
         db.get(data.key, function (err, value) {
           if(!value) return
           var ret = stub(value, query, data.value)
           if(ret)
             self.queue(ret)
+          if(!--n && ended) {
+            self.queue(null)
+          }
         })
+      }, function () {
+        ended = true
+        if(n > 0) return
+        this.queue(null)
       }))
 
   }
