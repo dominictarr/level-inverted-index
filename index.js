@@ -13,6 +13,14 @@ function toFunction (f) {
 
 module.exports = function (db, indexDb, map, stub) {
 
+  if('string' === typeof indexDb)
+    indexDb = db.sublevel(indexDb)
+
+  var methods = indexDb.methods = indexDb.methods || {}
+
+  methods.query = {type: 'async'}
+  methods.createQueryStream = {type: 'readable'}
+
   map = map || function (key, value, emit) {
     emit(value.toString())
   }
@@ -41,14 +49,6 @@ module.exports = function (db, indexDb, map, stub) {
 
   var insensitive = true
   var splitter = /[\W\d]+/
-
-  if('string' === typeof indexDb)
-    indexDb = db.sublevel(indexDb)
-
-  var methods = indexDb.methods = indexDb.methods || {}
-
-  methods.query = {type: 'async'}
-  methods.createQueryStream = {type: 'readable'}
 
   function toCase(w) {
     return insensitive ? w.toUpperCase() : w
@@ -100,7 +100,6 @@ module.exports = function (db, indexDb, map, stub) {
   })
 
   indexDb.query = function (query) {
-    console.log(query)
     return join(query.map(function (k) {
       //create streams for each query
       k = k.toUpperCase()
