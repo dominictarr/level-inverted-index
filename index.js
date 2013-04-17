@@ -2,6 +2,7 @@ var MapReduce = require('map-reduce')
 var through  = require('through')
 var from     = require('from')
 var join     = require('relational-join-stream')
+var LiveStream = require('level-live-stream')
 
 function toFunction (f) {
   if('string' == typeof f)
@@ -32,19 +33,17 @@ module.exports = function (db, indexDb, map, stub) {
     var header = null
     var matches = value.split('\n').map(function (line) {
       var ch = false
-      if(line.trim() && !header)
-        header = line
 
       for(var i in query) {
         var q = query[i]
         if(~line.indexOf(q)) {
-          line = line.replace(q, '<strong>' + q + '</strong>'), ch = true
+          line = line.split(' '+q).join(' <strong>' + q + '</strong>'), ch = true
         }
       }
       return ch ? line : null
     }).filter(function (e) {return !!e}).join('\n')
 
-    return header + '\n' + matches
+    return matches
   }
 
   var insensitive = true
@@ -99,14 +98,17 @@ module.exports = function (db, indexDb, map, stub) {
     map(key, val, split)
   })
 
-  indexDb.query = function (query) {
+  indexDb.query = function (query, opts) {
+    opts = opts || {}
+    //default to false
+    opts.tail = opts.tail !== false
     return join(query.map(function (k) {
       //create streams for each query
       k = k.toUpperCase()
       var range = /~$/.test(k)
         ? {start: '2!'+k.replace(/~$/, ''), end: '2!'+k}
         : {start: '2!'+k+'!', end: '2!'+k+'!~'}
-      return indexDb.createReadStream(range)
+      return LiveStream(indexDb, range)
     }), 'value',
     function (data) {
       //map to {word: rank}
@@ -130,17 +132,20 @@ module.exports = function (db, indexDb, map, stub) {
     })
   }
 
-  indexDb.createQueryStream = function (query) {
+  indexDb.createQueryStream = function (query, opts) {
     var n = 0, ended = false
-    return indexDb.query(query)
+    var seen = {}
+    return indexDb.query(query, opts)
       .pipe(through(function (data) {
+        if(seen[data.key]) return
+        seen[data.key] = true
         n ++
         var self = this
         db.get(data.key, function (err, value) {
           if(!value) return
           var ret = stub(value, query, data.value)
           if(ret)
-            self.queue(ret)
+            self.queue({key: data.key, value: ret})
           if(!--n && ended) {
             self.queue(null)
           }
@@ -150,7 +155,6 @@ module.exports = function (db, indexDb, map, stub) {
         if(n > 0) return
         this.queue(null)
       }))
-
   }
 
   return indexDb
