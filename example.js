@@ -4,7 +4,7 @@ var opts   = require('optimist').argv
 var rimraf = require('rimraf')
 
 if(opts.clean)
-  rimraf.sync('/tmp/level-inverted-index-example')
+  return rimraf.sync('/tmp/level-inverted-index-example')
 
 var db = 
   require('level-sublevel')
@@ -42,7 +42,22 @@ else if (opts.query) {
     .on('data', console.log)
 
 }
-else {
-  index.createQueryStream(opts._)
+else if (opts._.length) {
+  index.createQueryStream(opts._, opts)
     .on('data', console.log)
+}
+else {
+  var l = console.log
+  l('level-inverted-index/example.js')
+  l()
+  l('  first, add some documents to index:')
+  l()
+  l('  >node example.js ../*/README.* ../*/readme.* --index')
+  l()
+  l("  (I'm gonna index all the readmes in my dev folder)")
+  l()
+  l('  search for a document (that mentions leveldb)')
+  l()
+  l('  > node example.js leveldb')
+  
 }
