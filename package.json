@@ -8,11 +8,11 @@
     "url": "git://github.com/dominictarr/level-inverted-index.git"
   },
   "dependencies": {
-    "level-map-merge": "~3.0.1",
     "through": "~2.2.2",
     "from": "~0.1.2",
     "relational-join-stream": "~1.1.0",
-    "level-live-stream": "~1.4.0"
+    "level-live-stream": "~1.4.0",
+    "map-reduce": "~3.1.5"
   },
   "devDependencies": {
     "level-sublevel": "~4.6.0",
