@@ -17,6 +17,7 @@ module.exports = function (db, indexDb, map, stub) {
   if('string' === typeof indexDb)
     indexDb = db.sublevel(indexDb)
 
+  var wild = /(~|\*)$/
   var methods = indexDb.methods = indexDb.methods || {}
 
   methods.query = {type: 'readable'}
@@ -28,7 +29,7 @@ module.exports = function (db, indexDb, map, stub) {
 
   stub = stub || function (value, query) {
     query = query.map(function (e) {
-      return e.replace('~', '')
+      return e.replace(wild, '')
     })
     var header = null
     var matches = value.split('\n').map(function (line) {
@@ -105,8 +106,9 @@ module.exports = function (db, indexDb, map, stub) {
     return join(query.map(function (k) {
       //create streams for each query
       k = k.toUpperCase()
-      var range = /~$/.test(k)
-        ? {start: '2!'+k.replace(/~$/, ''), end: '2!'+k}
+      var _k = k.replace(wild, '')
+      var range = k !== _k
+        ? {start: '2!'+_k, end: '2!'+_k+'~'}
         : {start: '2!'+k+'!', end: '2!'+k+'!~'}
       return LiveStream(indexDb, range)
     }), 'value',
