@@ -99,7 +99,15 @@ module.exports = function (db, indexDb, map, stub) {
     map(key, val, split)
   })
 
+  function arrayify (q) {
+    if('string' === typeof q)
+      return q.split(' ')
+    if(Array.isArray(q)) return q
+    return []
+  }
+
   indexDb.query = function (query, opts) {
+    query = arrayify(query)
     opts = opts || {}
     //default to false
     opts.tail = opts.tail !== false
@@ -135,6 +143,7 @@ module.exports = function (db, indexDb, map, stub) {
   }
 
   indexDb.createQueryStream = function (query, opts) {
+    query = arrayify(query)
     var n = 0, ended = false
     var seen = {}
     return indexDb.query(query, opts)
