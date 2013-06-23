@@ -110,14 +110,14 @@ module.exports = function (db, indexDb, map, stub) {
     query = arrayify(query)
     opts = opts || {}
     //default to false
-    opts.tail = opts.tail !== false
+    opts.tail = !!opts.tail
     return join(query.map(function (k) {
       //create streams for each query
       k = k.toUpperCase()
       var _k = k.replace(wild, '')
       var range = k !== _k
-        ? {start: '2!'+_k, end: '2!'+_k+'~'}
-        : {start: '2!'+k+'!', end: '2!'+k+'!~'}
+        ? {start: '2!'+_k, end: '2!'+_k+'~', tail: opts.tail}
+        : {start: '2!'+k+'!', end: '2!'+k+'!~', tail: opts.tail}
       return LiveStream(indexDb, range)
     }), 'value',
     function (data) {
