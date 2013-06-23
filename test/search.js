@@ -1,6 +1,6 @@
 
 var nonsense = require('nonsense')
-var levelup  = require('levelup')
+var levelup  = require('level')
 var sublevel = require('level-sublevel')
 
 var dir = '/tmp/test-inverted-index'
