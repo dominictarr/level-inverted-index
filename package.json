@@ -20,7 +20,7 @@
     "nonsense": "~0.2.0",
     "sha1sum": "0.0.1",
     "tape": "~0.2",
-    "level-sublevel": "~4.7.0",
+    "level-sublevel": ">=4.7.0 <5",
     "level": "~0.10.0"
   },
   "scripts": {
