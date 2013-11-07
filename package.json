@@ -11,7 +11,7 @@
     "through": "~2.2.2",
     "from": "~0.1.2",
     "relational-join-stream": "~1.1.0",
-    "map-reduce": "5.0",
+    "map-reduce": "~4.0.5",
     "level-live-stream": "~1.4.4"
   },
   "devDependencies": {
